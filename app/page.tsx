@@ -15,6 +15,24 @@ import {
 	ArrowUpDown,
 } from "lucide-react";
 
+interface Todo {
+	id: string;
+	text: string;
+	completed: boolean;
+	createdAt: string;
+	priority: "low" | "medium" | "high";
+}
+
+interface SortableItemProps {
+	todo: Todo;
+	onToggle: (id: string) => void;
+	onDelete: (id: string) => void;
+	onStartEdit: (id: string) => void;
+	onSaveEdit: (id: string) => void;
+	onChangeText: (id: string, text: string) => void;
+	editingId: string | null;
+}
+
 import {
 	DndContext,
 	closestCenter,
@@ -37,11 +55,11 @@ import { CSS } from "@dnd-kit/utilities";
 /* -------------------------
   Utilities
 ------------------------- */
-const uid = () => Date.now() + "-" + Math.floor(Math.random() * 10000);
+const uid = (): string => Date.now() + "-" + Math.floor(Math.random() * 10000);
 
-const defaultTodos = [];
+const defaultTodos: Todo[] = [];
 
-const priorityClasses = {
+const priorityClasses: Record<Todo["priority"], string> = {
 	low: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
 	medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
 	high: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
@@ -58,7 +76,7 @@ function SortableItem({
 	onSaveEdit,
 	onChangeText,
 	editingId,
-}) {
+}: SortableItemProps) {
 	const { attributes, listeners, setNodeRef, transform, transition } =
 		useSortable({ id: todo.id });
 
@@ -167,15 +185,15 @@ function SortableItem({
   Main Component
 ------------------------- */
 export default function Home() {
-	const [task, setTask] = useState("");
-	const [todos, setTodos] = useState(defaultTodos);
-	const [darkMode, setDarkMode] = useState(false);
-	const [filter, setFilter] = useState("all");
-	const [editingId, setEditingId] = useState(null);
-	const [search, setSearch] = useState("");
-	const [sortBy, setSortBy] = useState("created");
-	const [lastDeleted, setLastDeleted] = useState(null);
-	const undoTimerRef = useRef(null);
+	const [task, setTask] = useState<string>("");
+	const [todos, setTodos] = useState<Todo[]>(defaultTodos);
+	const [darkMode, setDarkMode] = useState<boolean>(false);
+	const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+	const [editingId, setEditingId] = useState<string | null>(null);
+	const [search, setSearch] = useState<string>("");
+	const [sortBy, setSortBy] = useState<"created" | "priority">("created");
+	const [lastDeleted, setLastDeleted] = useState<Todo | null>(null);
+	const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 	const sensors = useSensors(
 		useSensor(PointerSensor),
@@ -200,10 +218,10 @@ export default function Home() {
 		document.documentElement.classList.toggle("dark", darkMode);
 	}, [darkMode]);
 
-	const addTodo = (e) => {
+	const addTodo = (e?: React.FormEvent) => {
 		e?.preventDefault();
 		if (!task.trim()) return;
-		const newTodo = {
+		const newTodo: Todo = {
 			id: uid(),
 			text: task.trim(),
 			completed: false,
@@ -279,11 +297,14 @@ export default function Home() {
 	// DnD
 	const [activeId, setActiveId] = useState(null);
 
-	function handleDragStart(event) {
+	function handleDragStart(event: { active: { id: string } }) {
 		setActiveId(event.active.id);
 	}
 
-	function handleDragEnd(event) {
+	function handleDragEnd(event: {
+		active: { id: string };
+		over?: { id: string };
+	}) {
 		const { active, over } = event;
 		setActiveId(null);
 		if (active.id !== over?.id) {
@@ -294,7 +315,7 @@ export default function Home() {
 				const reorderedIds = arrayMove(visibleIds, oldIndex, newIndex);
 				const idToTodo = Object.fromEntries(
 					todos.map((t) => [t.id, t])
-				);
+				) as Record<string, Todo>;
 				const newOrder = reorderedIds
 					.map((id) => idToTodo[id])
 					.filter(Boolean);

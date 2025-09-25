@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+body {
+	background: linear-gradient(135deg, #c1ff72 0%, #3b82f6 100%);
+}
+
+/* Dark mode background */
+html.dark body {
+	background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}

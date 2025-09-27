@@ -41,6 +41,8 @@ import {
 	useSensor,
 	useSensors,
 	DragOverlay,
+	DragStartEvent,
+	DragEndEvent,
 } from "@dnd-kit/core";
 
 import {
@@ -80,7 +82,7 @@ function SortableItem({
 	const { attributes, listeners, setNodeRef, transform, transition } =
 		useSortable({ id: todo.id });
 
-	const style = {
+	const style: React.CSSProperties = {
 		transform: CSS.Transform.toString(transform),
 		transition,
 	};
@@ -193,7 +195,7 @@ export default function Home() {
 	const [search, setSearch] = useState<string>("");
 	const [sortBy, setSortBy] = useState<"created" | "priority">("created");
 	const [lastDeleted, setLastDeleted] = useState<Todo | null>(null);
-	const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
+	const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const sensors = useSensors(
 		useSensor(PointerSensor),
@@ -209,14 +211,14 @@ export default function Home() {
 		document.documentElement.classList.toggle("dark", savedDark);
 	}, []);
 
-  useEffect(() => {
-    localStorage.setItem("todos", JSON.stringify(todos));
-  }, [todos]);
+	useEffect(() => {
+		localStorage.setItem("todos", JSON.stringify(todos));
+	}, [todos]);
 
-  useEffect(() => {
-    localStorage.setItem("darkMode", String(darkMode));
-    document.documentElement.classList.toggle("dark", darkMode);
-  }, [darkMode]);
+	useEffect(() => {
+		localStorage.setItem("darkMode", String(darkMode));
+		document.documentElement.classList.toggle("dark", darkMode);
+	}, [darkMode]);
 
 	const addTodo = (e?: React.FormEvent) => {
 		e?.preventDefault();
@@ -232,7 +234,7 @@ export default function Home() {
 		setTask("");
 	};
 
-	const deleteTodo = (id) => {
+	const deleteTodo = (id: string) => {
 		const removed = todos.find((t) => t.id === id);
 		if (!removed) return;
 		setTodos((s) => s.filter((t) => t.id !== id));
@@ -251,16 +253,16 @@ export default function Home() {
 		if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
 	};
 
-	const toggleComplete = (id) => {
+	const toggleComplete = (id: string) => {
 		setTodos((s) =>
 			s.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
 		);
 	};
 
-	const startEdit = (id) => setEditingId(id);
-	const changeText = (id, text) =>
+	const startEdit = (id: string) => setEditingId(id);
+	const changeText = (id: string, text: string) =>
 		setTodos((s) => s.map((t) => (t.id === id ? { ...t, text } : t)));
-	const saveEdit = (id) => setEditingId(null);
+	const saveEdit = (id: string) => setEditingId(null);
 
 	const clearCompleted = () => setTodos((s) => s.filter((t) => !t.completed));
 
@@ -277,16 +279,22 @@ export default function Home() {
 	});
 
 	// Sorting
-	const sortTodos = (list) => {
+	const sortTodos = (list: Todo[]) => {
 		const copy = [...list];
 		if (sortBy === "created")
 			return copy.sort(
-				(a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+				(a, b) =>
+					new Date(b.createdAt).getTime() -
+					new Date(a.createdAt).getTime()
 			);
 		if (sortBy === "priority") {
-			const order = { high: 0, medium: 1, low: 2 };
+			const order: Record<Todo["priority"], number> = {
+				high: 0,
+				medium: 1,
+				low: 2,
+			};
 			return copy.sort(
-				(a, b) => (order[a.priority] ?? 3) - (order[b.priority] ?? 3)
+				(a, b) => order[a.priority] - order[b.priority]
 			);
 		}
 		return copy;
@@ -295,16 +303,13 @@ export default function Home() {
 	const visible = sortTodos(filtered);
 
 	// DnD
-	const [activeId, setActiveId] = useState(null);
+	const [activeId, setActiveId] = useState<string | null>(null);
 
-	function handleDragStart(event: { active: { id: string } }) {
-		setActiveId(event.active.id);
+	function handleDragStart(event: DragStartEvent) {
+		setActiveId(event.active.id as string);
 	}
 
-	function handleDragEnd(event: {
-		active: { id: string };
-		over?: { id: string };
-	}) {
+	function handleDragEnd(event: DragEndEvent) {
 		const { active, over } = event;
 		setActiveId(null);
 		if (active.id !== over?.id) {
@@ -367,7 +372,9 @@ export default function Home() {
 
 					<select
 						value={sortBy}
-						onChange={(e) => setSortBy(e.target.value)}
+						onChange={(e) =>
+							setSortBy(e.target.value as "created" | "priority")
+						}
 						className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700"
 						title="Sort by"
 					>
@@ -407,7 +414,7 @@ export default function Home() {
 			{/* Filters */}
 			<div className="flex items-center justify-between mb-4 gap-3">
 				<div className="flex gap-2">
-					{["all", "active", "completed"].map((f) => (
+					{(["all", "active", "completed"] as const).map((f) => (
 						<button
 							key={f}
 							onClick={() => setFilter(f)}
